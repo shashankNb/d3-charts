@@ -410,7 +410,7 @@ const createChart = (data) => {
             ? INPUT_ATTRIBUTES.reduceBarWidth / dataLength
             : INPUT_ATTRIBUTES.reduceBarWidth * 1.5) : x0(d.group)}, 0)`);
     // Start creating bar rectangles.
-    const createBarRects = (barGroup, x1, y, z, height) => {
+    const createBarRects = (barGroup, x1, y, height) => {
         const barRects = barGroup.selectAll('rect.bar').data(d => d.series.map(i => i));
         d3.selectAll('.d3-tip').remove();
         barRects.enter()
@@ -449,7 +449,7 @@ const createChart = (data) => {
             .remove();
 
     }
-    createBarRects(barGroup, x1, y, z, height);
+    createBarRects(barGroup, x1, y, height);
     const createBarLabels = () => {
         if (INPUT_ATTRIBUTES.showBarValuesOnTop) {
             const barTexts = barGroup.selectAll('text.bar-label').data(d => d.series);
