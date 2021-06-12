@@ -72,7 +72,6 @@ const INPUT_ATTRIBUTES = {
     isShowAlternateBackGroundColor: true,
     alternateBackgroundColorOpacity: 0.8,
     backgroundBarColorCodes: ['#E1EAF2', 'none'],
-    barColor: ['#7279AC', '#C1BFDD'],
     showYAxisLabel: true,
     showBarValuesOnTop: true,
     showValuesBottomMargin: true
@@ -90,18 +89,21 @@ const GET_ANGLES = {
     '-90': {deg: -90, rad: Math.PI / 2, factor: 0.5}
 }
 
+let isRendered = false;
+
 // preparing a chart function
 const createChart = (data) => {
 
-    //removing it for the firs time
-    d3.select('svg').remove();
-    svg = d3.select('#data-viz')
-        .append('svg')
-        .attr('width', '100%')
-        .attr('height', INPUT_ATTRIBUTES.height)
-        .append('g')
-        .attr('transform', 'translate(0,0)')
-        .attr('class', 'interactive-vertical-chart');
+    if (!isRendered) {
+        svg = d3.select('#data-viz')
+            .append('svg')
+            .attr('width', '100%')
+            .attr('height', INPUT_ATTRIBUTES.height)
+            .append('g')
+            .attr('transform', 'translate(0,0)')
+            .attr('class', 'interactive-vertical-chart');
+        isRendered = true;
+    }
 
     // Setting up margins
     const margin = {
@@ -149,18 +151,9 @@ const createChart = (data) => {
         return scale;
     }
 
-    const prepareOrdinalScale = (domain, range) => {
-        const scale = d3.scaleOrdinal()
-            .range(range)
-            .domain(domain);
-        scale.type = 'ORDINAL';
-        return scale;
-    }
-
     // Get BandScales
     const x0 = prepareBandScale(groups, [0, width], INPUT_ATTRIBUTES.innerPadding, INPUT_ATTRIBUTES.outerPadding).round(true);
     const x1 = prepareBandScale(xAxisGroupLabels, [0, x0.bandwidth()], INPUT_ATTRIBUTES.seriesInnerPadding, INPUT_ATTRIBUTES.outerPadding).round(true);
-    const z = prepareOrdinalScale(groups, INPUT_ATTRIBUTES.barColor);
 
     // creating chart groups
     let chart = svg.selectAll('g.chart').data([{}]);
@@ -214,7 +207,7 @@ const createChart = (data) => {
                 .attr('text-anchor', 'middle')
                 .attr('font-size', '12px')
                 .text(d => d)
-                .style('font-weight', 'bold')
+                .style('font-weight', '600')
                 .attr('fill', '#333');
 
             xAxis.select('.rect_x-axis').attr('x', d => currentRotation !== 0
@@ -341,7 +334,7 @@ const createChart = (data) => {
         }
     }
 
-    const y = d3.scaleLinear().domain(domain).nice().rangeRound([height, 0]);
+    const y = d3.scaleLinear().domain(domain).rangeRound([height, 0]);
     if (INPUT_ATTRIBUTES.isShowAlternateBackGroundColor) {
         const createBackGroundBar = (container, xScale, yScale, backgroundBarColorCodes) => {
             const output = getTicksValueAndBandWidth(xScale);
@@ -374,23 +367,26 @@ const createChart = (data) => {
     }
 
     // Create Grid Line Group
+    const getFormattedTickValues = (yScale, noOfTicks, additionalTicks = 0) => {
+        const step = (yScale.domain()[1] - yScale.domain()[0]) / noOfTicks;
+        return d3.range(yScale.domain()[0], yScale.domain()[1] + step / 2 + additionalTicks * step, step);
+    }
     if (!INPUT_ATTRIBUTES.isChartWithNoAxis) {
         let gridLineGroup = chartGroup.selectAll('g.grid-line-group').data([{}]);
-        const getFormattedTickValues = (yScale, noOfTicks, additionalTicks = 0) => {
-            const step = (yScale.domain()[1] - yScale.domain()[0]) / noOfTicks;
-            return d3.range(yScale.domain()[0], yScale.domain()[1] + step / 2 + additionalTicks * step, step);
-        }
-        const formatterRage = getFormattedTickValues(y, INPUT_ATTRIBUTES.noOfTicks);
-        let axis = d3.axisLeft(y).tickSize(-width).tickFormat(() => '')
-            .ticks(INPUT_ATTRIBUTES.noOfTicks);
+        const formattedRange = getFormattedTickValues(y, INPUT_ATTRIBUTES.noOfTicks);
+        let axis = d3.axisLeft(y).tickSize(-width).tickFormat(() => '').ticks(INPUT_ATTRIBUTES.noOfTicks);
         if (INPUT_ATTRIBUTES.noOfTicks) {
-            axis = axis.tickValues([...formatterRage]);
+            axis = axis.tickValues([...formattedRange]);
         }
         gridLineGroup = gridLineGroup.enter()
             .append('g')
             .attr('class', 'grid-line-group')
             .merge(gridLineGroup)
-            .call(axis);
+            //.call(axis);
+            .call(d3.axisLeft(y)
+                .tickSize(-width)
+                .ticks(INPUT_ATTRIBUTES.noOfTicks)
+                .tickFormat(() => ''));
         gridLineGroup.selectAll('line').attr('stroke', '#d3d3d3');
         gridLineGroup.selectAll('path.domain').remove();
     }
@@ -504,14 +500,22 @@ const createChart = (data) => {
         const createYAxis = (chartGroup, y) => {
             const tickFormat = getTickFormat(INPUT_ATTRIBUTES.yAxisTickFormat)
             let yAxisGroup = chartGroup.selectAll('g.y-axis').data([{}]);
+            const formattedRange = getFormattedTickValues(y, INPUT_ATTRIBUTES.noOfTicks);
+            let axis = d3.axisLeft(y)
+                .tickFormat(tickFormat)
+                .ticks(INPUT_ATTRIBUTES.noOfTicks);
+            if (this.ticks) {
+                axis = axis.tickValues([...formattedRange]);
+            }
             yAxisGroup = yAxisGroup.enter()
                 .append('g')
                 .attr('class', 'y-axis')
                 .merge(yAxisGroup)
-                .call(d3.axisLeft(y)
-                    .tickFormat(tickFormat)
-                    .ticks(INPUT_ATTRIBUTES.ticks)
-                );
+                .call(axis);
+                // .call(d3.axisLeft(y)
+                //     .tickFormat(tickFormat)
+                //     .ticks(INPUT_ATTRIBUTES.ticks)
+                // );
             yAxisGroup.selectAll('path.domain').remove();
             yAxisGroup.selectAll('.tick').select('line').remove();
             if (INPUT_ATTRIBUTES.showYAxisLabel) {
@@ -550,6 +554,5 @@ const createChart = (data) => {
         }
     }
 }
-
 createChart(data);
 window.addEventListener('resize', () => createChart(data));

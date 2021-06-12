@@ -193,8 +193,6 @@ const createChart = (chart_data) => {
         .attr('y', d => y(d.value))
         .attr('fill', (d, i) => input_params.barColors[i]);
 }
-
 createChart(chart_data);
-
 // Finally add the resize event which will redraw the chart if you reisze the browser to make it mobile responsive
 window.addEventListener('resize', () => createChart(chart_data));
